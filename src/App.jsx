@@ -5,25 +5,25 @@ const schedule = {
   title: "Northside Youth Soccer League App",
   
   courses: {
-    F101: {
-      id: "F101",
-      meets: "MWF 11:00-11:50",
-      title: "Computer Science: Concepts, Philosophy, and Connections"
+    Partido1: {
+      id: "Partido 1: Mexico vs Inglaterra ",
+      meets: "Horario: 11:00-11:50",
+      title: "Inauguracion de la CHAMPIONS"
     },
-    F110: {
-      id: "F110",
-      meets: "MWF 10:00-10:50",
-      title: "Intro Programming for non-majors"
+    Partido2: {
+      id: "Partido 2: Russia vs Alemania",
+      meets: "Horario: 10:00-10:50",
+      title: "Primer partido"
     },
-    S313: {
-      id: "S313",
-      meets: "TuTh 15:30-16:50",
-      title: "Tangible Interaction Design and Learning"
+    Partido3: {
+      id: "Partido 3: Suiza vs Irlanda",
+      meets: "Horario: 15:30-16:50",
+      title: "Reencuentro de titanes"
     },
-    S314: {
-      id: "S314",
-      meets: "TuTh 9:30-10:50",
-      title: "Tech & Human Interaction"
+    Partido4: {
+      id: "Partido 4: España vs Francia ",
+      meets: "Horario: 9:30-10:50",
+      title: "La gran final"
     }
   }
 };
