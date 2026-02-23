@@ -5,8 +5,8 @@ const schedule = {
   title: "Northside Youth Soccer League App",
   
   courses: {
-    Partido1: {
-      id: "Partido 1: Mexico vs Inglaterra ",
+    Partido1: {       
+      id: "Partido 1: Mexico vs Inglaterra",
       meets: "Horario: 11:00-11:50",
       title: "Inauguracion de la CHAMPIONS"
     },
@@ -21,35 +21,38 @@ const schedule = {
       title: "Reencuentro de titanes"
     },
     Partido4: {
-      id: "Partido 4: España vs Francia ",
+      id: "Partido 4: España vs Francia",
       meets: "Horario: 9:30-10:50",
       title: "La gran final"
     }
   }
 };
 
-// Componente Banner
+// Banner
 const Banner = ({ title }) => (
-  <h1>{title}</h1>
+  <div className="bg-dark text-white text-center py-4 mb-4 rounded">
+    <h1 className="fw-bold">{title}</h1>
+  </div>
 );
 
-// Componente Course
+// Tarjeta individual
 const Course = ({ course }) => (
-  <div style={{ 
-    border: "1px solid gray", 
-    padding: "10px", 
-    margin: "10px",
-    borderRadius: "8px"
-  }}>
-    <h2>{course.id}</h2>
-    <p>{course.title}</p>
-    <p><strong>{course.meets}</strong></p>
+  <div className="col-md-6 col-lg-4 mb-4">
+    <div className="card h-100 shadow-sm">
+      <div className="card-body">
+        <h5 className="card-title text-primary">{course.id}</h5>
+        <p className="card-text">{course.title}</p>
+        <p className="card-text">
+          <small className="text-muted">{course.meets}</small>
+        </p>
+      </div>
+    </div>
   </div>
 );
 
 // Lista de cursos
 const CourseList = ({ courses }) => (
-  <div>
+  <div className="row">
     {Object.values(courses).map(course => (
       <Course key={course.id} course={course} />
     ))}
@@ -59,7 +62,7 @@ const CourseList = ({ courses }) => (
 // Componente principal
 function App() {
   return (
-    <div>
+    <div className="container mt-4">
       <Banner title={schedule.title} />
       <CourseList courses={schedule.courses} />
     </div>
