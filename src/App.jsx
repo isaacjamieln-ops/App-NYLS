@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import CourseList from "./components/CourseList.jsx";
+import { useData } from "./firebase";
+import { addScheduleTimes } from "./utilities/times";
 
 // --------------------
-// TUS DATOS ORIGINALES
+// TUS DATOS ORIGINALES (PARTIDOS)
 // --------------------
 const schedule = {
   title: "Aplicacion de Liga de Futbol Soccer Juvenil de Northside",
@@ -130,15 +132,13 @@ const toggle = (course, selected) =>
 
 const parseMeets = (meets) => {
   if (!meets) return null;
-  // Maneja formato "Horario: 11:00-11:50" de tus partidos
   if (meets.startsWith("Horario:")) {
     meets = meets.replace("Horario:", "").trim();
   }
   const [days, time] = meets.split(" ");
-  // Si no hay días, asumimos que es un horario sin días específicos
   if (!time) {
     const [start, end] = meets.split("-");
-    return { days: "LMD", start, end }; // LMD = Lunes a Domingo (todos los días)
+    return { days: "LMD", start, end };
   }
   const [start, end] = time.split("-");
   return { days, start, end };
@@ -152,20 +152,14 @@ const timeToMinutes = (t) => {
 
 const overlaps = (course1, course2) => {
   if (!course1.meets || !course2.meets) return false;
-
   const c1 = parseMeets(course1.meets);
   const c2 = parseMeets(course2.meets);
-  
   if (!c1 || !c2) return false;
-
-  // Si no comparten días → no conflicto
   if (![...c1.days].some(d => c2.days.includes(d))) return false;
-
   const start1 = timeToMinutes(c1.start);
   const end1 = timeToMinutes(c1.end);
   const start2 = timeToMinutes(c2.start);
   const end2 = timeToMinutes(c2.end);
-
   return start1 < end2 && start2 < end1;
 };
 
@@ -174,17 +168,31 @@ const hasConflict = (course, selected) => {
 };
 
 // --------------------
-// COMPONENTE COURSE (con detección de conflictos)
+// COMPONENTE COURSE (con lógica correcta de selección)
 // --------------------
+
 const Course = ({ course, selected, setSelected }) => {
-  const isSelected = selected.includes(course);
-  const isDisabled = !isSelected && hasConflict(course, selected);
+  // Comparar por number (más seguro que por objeto completo)
+  const isSelected = selected.some(c => c.number === course.number);
+
+  const toggleCourse = () => {
+    if (isSelected) {
+      // Deseleccionar
+      setSelected(selected.filter(c => c.number !== course.number));
+    } else {
+      // Seleccionar
+      setSelected([...selected, course]);
+    }
+  };
+
+  const isDisabled =
+    !isSelected && selected.some(c => overlaps(course, c));
 
   const style = {
-    backgroundColor: isDisabled
-      ? "#f0f0f0"
-      : isSelected
+    backgroundColor: isSelected
       ? colors.jadeVerySoft
+      : isDisabled
+      ? "#f0f0f0"
       : colors.cardBg,
     color: colors.textDark,
     cursor: isDisabled ? "not-allowed" : "pointer",
@@ -194,41 +202,48 @@ const Course = ({ course, selected, setSelected }) => {
       isSelected ? colors.jadeDark : colors.jadeLight
     }`,
     height: "100%",
-    opacity: isDisabled ? 0.6 : 1
+    opacity: isDisabled ? 0.6 : 1,
+    boxShadow: isSelected
+      ? "0 0 20px rgba(0, 168, 107, 0.4)"
+      : "0 4px 12px rgba(0,0,0,0.05)"
   };
 
   return (
     <div
       className="card h-100 shadow-sm"
       style={style}
-      onClick={!isDisabled ? () => setSelected(toggle(course, selected)) : null}
+      onClick={!isDisabled ? toggleCourse : null}
       onMouseEnter={(e) => {
         if (!isDisabled) {
           e.currentTarget.style.transform = "translateY(-8px)";
-          e.currentTarget.style.boxShadow = "0 15px 30px rgba(0, 168, 107, 0.15)";
-          e.currentTarget.style.borderColor = colors.jadeDark;
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = "#FFFFFF";
-          }
+          e.currentTarget.style.boxShadow = isSelected
+            ? "0 0 25px rgba(0, 168, 107, 0.6)"
+            : "0 15px 30px rgba(0, 168, 107, 0.15)";
         }
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-        e.currentTarget.style.borderColor = isSelected ? colors.jadeDark : colors.jadeLight;
-        if (!isSelected) {
-          e.currentTarget.style.backgroundColor = colors.cardBg;
-        }
+        e.currentTarget.style.boxShadow = isSelected
+          ? "0 0 20px rgba(0, 168, 107, 0.4)"
+          : "0 4px 12px rgba(0,0,0,0.05)";
       }}
     >
       <div className="card-body">
-        <h5 className="card-title fw-bold" style={{ color: isSelected ? colors.jadeDark : colors.jadeMedium }}>
+        <h5
+          className="card-title fw-bold"
+          style={{ color: isSelected ? colors.jadeDark : colors.jadeMedium }}
+        >
           {getCourseTerm(course)} {getCourseNumber(course)}
         </h5>
+
         <p className="card-text">{course.title}</p>
+
         <p className="card-text">
-          <small style={{ color: colors.textLight }}>{course.meets || "Horario no disponible"}</small>
+          <small style={{ color: colors.textLight }}>
+            {course.meets || "Horario no disponible"}
+          </small>
         </p>
+
         {isDisabled && (
           <div className="text-danger fw-bold mt-2">
             ⚠️ Conflicto de horario
@@ -292,36 +307,52 @@ const TermSelector = ({ term, setTerm }) => (
 );
 
 // --------------------
-// APP PRINCIPAL
+// APP PRINCIPAL CON FIREBASE
 // --------------------
 
 function App() {
-  const [externalCourses, setExternalCourses] = useState([]);
-  const [externalTitle, setExternalTitle] = useState("");
+  // 🔥 Usar Firebase en lugar de fetch
+  const [scheduleData, loading, error] = useData('/', addScheduleTimes);
   const [term, setTerm] = useState("Fall");
   const [selected, setSelected] = useState([]);
 
+  // Obtener datos de Firebase
+  const externalTitle = scheduleData?.title || "CS Courses for 2018-2019";
+  const externalCourses = scheduleData?.courses || [];
+
+  // Filtrar por término
+  const filteredCourses = externalCourses.filter(course => course.term === term);
+
+  // Resetear selección cuando cambia el término
   useEffect(() => {
     setSelected([]);
   }, [term]);
 
-  useEffect(() => {
-    async function fetchCourses() {
-      try {
-        const response = await fetch(
-          "https://courses.cs.northwestern.edu/394/guides/data/cs-courses.php"
-        );
-        const data = await response.json();
-        setExternalTitle(data.title);
-        setExternalCourses(Object.values(data.courses));
-      } catch (error) {
-        console.error("Error al obtener cursos:", error);
-      }
-    }
-    fetchCourses();
-  }, []);
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div style={{ background: colors.background, minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div className="text-center">
+          <div className="spinner-border text-success" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+          <p className="mt-3">Cargando cursos desde Firebase...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const filteredCourses = externalCourses.filter(course => course.term === term);
+  // Mostrar error si hay
+  if (error) {
+    return (
+      <div style={{ background: colors.background, minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div className="text-center text-danger">
+          <h3>Error al cargar datos</h3>
+          <p>{error.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -378,7 +409,7 @@ function App() {
           border: "none"
         }} />
 
-        {/* 📚 CURSOS CON DETECCIÓN DE CONFLICTOS */}
+        {/* 📚 CURSOS DESDE FIREBASE CON DETECCIÓN DE CONFLICTOS */}
         <h2 className="mb-4 fw-bold"
             style={{
               color: colors.jadeMedium,
