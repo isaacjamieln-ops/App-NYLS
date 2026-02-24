@@ -30,6 +30,15 @@ const schedule = {
 };
 
 // --------------------
+// TERMINOS
+// --------------------
+const terms = {
+  Fall: "Fall",
+  Winter: "Winter",
+  Spring: "Spring"
+};
+
+// --------------------
 // COMPONENTES
 // --------------------
 
@@ -54,12 +63,46 @@ const Card = ({ title, subtitle, extra }) => (
 );
 
 // --------------------
+// BOTONES DE TERMINO
+// --------------------
+
+const TermButton = ({ term, setTerm, checked }) => (
+  <>
+    <input
+      type="radio"
+      id={term}
+      className="btn-check"
+      checked={checked}
+      autoComplete="off"
+      onChange={() => setTerm(term)}
+    />
+    <label className="btn btn-success m-1 p-2" htmlFor={term}>
+      {term}
+    </label>
+  </>
+);
+
+const TermSelector = ({ term, setTerm }) => (
+  <div className="btn-group mb-4">
+    {Object.values(terms).map(value => (
+      <TermButton
+        key={value}
+        term={value}
+        setTerm={setTerm}
+        checked={value === term}
+      />
+    ))}
+  </div>
+);
+
+// --------------------
 // APP
 // --------------------
 
 function App() {
   const [externalCourses, setExternalCourses] = useState([]);
   const [externalTitle, setExternalTitle] = useState("");
+  const [term, setTerm] = useState("Fall"); // 👈 estado del término
 
   useEffect(() => {
     async function fetchCourses() {
@@ -79,10 +122,14 @@ function App() {
     fetchCourses();
   }, []);
 
+  // 👇 FILTRADO POR TERMINO
+  const filteredCourses = externalCourses.filter(
+    course => course.term === term
+  );
+
   return (
     <div className="container mt-4">
 
-      {/* TU BANNER ORIGINAL */}
       <Banner title={schedule.title} />
 
       {/* ------------------ */}
@@ -103,11 +150,15 @@ function App() {
       <hr className="my-5" />
 
       {/* ------------------ */}
-      {/* CURSOS DEL SERVIDOR */}
+      {/* CURSOS FILTRADOS */}
       {/* ------------------ */}
+
       <h2 className="mb-3">{externalTitle}</h2>
+
+      <TermSelector term={term} setTerm={setTerm} />
+
       <div className="row">
-        {externalCourses.map((course, index) => (
+        {filteredCourses.map((course, index) => (
           <Card
             key={index}
             title={`${course.term} ${course.number}`}
