@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 // TUS DATOS ORIGINALES
 // --------------------
 const schedule = {
-  title: "Northside Youth Soccer League App",
+  title: "Aplicacion de Liga de Futbol Soccer Juvenil de Northside",
   courses: {
     Partido1: {
       id: "Partido 1: Mexico vs Inglaterra",
@@ -39,23 +39,74 @@ const terms = {
 };
 
 // --------------------
+// PALETA DE COLORES - BLANCO CON VERDE JADE
+// --------------------
+const colors = {
+  jadeLight: "#00A86B",      // Verde jade claro (principal)
+  jadeMedium: "#008B5E",     // Verde jade medio (botones)
+  jadeDark: "#006B45",       // Verde jade oscuro (hovers)
+  gold: "#D4AF37",           // Dorado suave para acentos
+  background: "#FFFFFF",     // Fondo blanco
+  cardBg: "#F8F9FA",         // Fondo de tarjetas gris muy claro
+  textDark: "#212529",       // Texto oscuro (casi negro)
+  textLight: "#6C757D",      // Texto gris para secundario
+  border: "#E9ECEF"          // Bordes suaves
+};
+
+// --------------------
 // COMPONENTES
 // --------------------
 
 const Banner = ({ title }) => (
-  <div className="bg-dark text-white text-center py-4 mb-4 rounded">
-    <h1 className="fw-bold">{title}</h1>
+  <div className="text-center py-5 mb-5 rounded shadow-sm"
+       style={{
+         background: `linear-gradient(135deg, ${colors.jadeLight}, ${colors.jadeMedium})`,
+         color: "white",
+         transition: "all 0.3s ease",
+         cursor: "pointer",
+         border: "none"
+       }}
+       onMouseEnter={(e) => {
+         e.currentTarget.style.background = `linear-gradient(135deg, ${colors.jadeMedium}, ${colors.jadeDark})`;
+         e.currentTarget.style.transform = "scale(1.02)";
+       }}
+       onMouseLeave={(e) => {
+         e.currentTarget.style.background = `linear-gradient(135deg, ${colors.jadeLight}, ${colors.jadeMedium})`;
+         e.currentTarget.style.transform = "scale(1)";
+       }}>
+    <h1 className="fw-bold display-5">{title}</h1>
   </div>
 );
 
 const Card = ({ title, subtitle, extra }) => (
   <div className="col-md-6 col-lg-4 mb-4">
-    <div className="card h-100 shadow-sm">
+    <div className="card h-100 shadow-sm"
+         style={{
+           backgroundColor: colors.cardBg,
+           color: colors.textDark,
+           transition: "all 0.3s ease",
+           cursor: "pointer",
+           borderRadius: "12px",
+           border: `2px solid ${colors.jadeLight}`,  // ✅ BORDE VERDE AGREGADO
+           borderColor: colors.jadeLight              // ✅ BORDE VERDE (respaldo)
+         }}
+         onMouseEnter={(e) => {
+           e.currentTarget.style.transform = "translateY(-8px)";
+           e.currentTarget.style.boxShadow = "0 15px 30px rgba(0, 168, 107, 0.15)";
+           e.currentTarget.style.backgroundColor = "#FFFFFF";
+           e.currentTarget.style.borderColor = colors.jadeDark;  // ✅ BORDE MÁS OSCURO AL HOVER
+         }}
+         onMouseLeave={(e) => {
+           e.currentTarget.style.transform = "translateY(0)";
+           e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
+           e.currentTarget.style.backgroundColor = colors.cardBg;
+           e.currentTarget.style.borderColor = colors.jadeLight;  // ✅ VUELVE AL VERDE ORIGINAL
+         }}>
       <div className="card-body">
-        <h5 className="card-title text-primary">{title}</h5>
-        <p className="card-text">{subtitle}</p>
+        <h5 className="card-title fw-bold" style={{ color: colors.jadeMedium }}>{title}</h5>
+        <p className="card-text" style={{ color: colors.textDark }}>{subtitle}</p>
         <p className="card-text">
-          <small className="text-muted">{extra}</small>
+          <small style={{ color: colors.textLight }}>{extra}</small>
         </p>
       </div>
     </div>
@@ -63,7 +114,7 @@ const Card = ({ title, subtitle, extra }) => (
 );
 
 // --------------------
-// BOTONES DE TERMINO
+// BOTONES DE TERMINO (CON ANIMACIÓN)
 // --------------------
 
 const TermButton = ({ term, setTerm, checked }) => (
@@ -76,7 +127,31 @@ const TermButton = ({ term, setTerm, checked }) => (
       autoComplete="off"
       onChange={() => setTerm(term)}
     />
-    <label className="btn btn-success m-1 p-2" htmlFor={term}>
+    <label
+      className={`btn m-2 px-4 py-2`}
+      htmlFor={term}
+      style={{
+        backgroundColor: checked ? colors.jadeLight : "transparent",
+        color: checked ? "white" : colors.jadeMedium,
+        border: `2px solid ${colors.jadeLight}`,
+        transition: "all 0.3s ease",
+        transform: checked ? "scale(1.05)" : "scale(1)",
+        fontWeight: "bold",
+        borderRadius: "25px"
+      }}
+      onMouseEnter={(e) => {
+        if (!checked) {
+          e.currentTarget.style.backgroundColor = colors.jadeLight + "20";
+          e.currentTarget.style.transform = "scale(1.1)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!checked) {
+          e.currentTarget.style.backgroundColor = "transparent";
+          e.currentTarget.style.transform = "scale(1)";
+        }
+      }}
+    >
       {term}
     </label>
   </>
@@ -102,7 +177,7 @@ const TermSelector = ({ term, setTerm }) => (
 function App() {
   const [externalCourses, setExternalCourses] = useState([]);
   const [externalTitle, setExternalTitle] = useState("");
-  const [term, setTerm] = useState("Fall"); // 👈 estado del término
+  const [term, setTerm] = useState("Fall");
 
   useEffect(() => {
     async function fetchCourses() {
@@ -122,52 +197,91 @@ function App() {
     fetchCourses();
   }, []);
 
-  // 👇 FILTRADO POR TERMINO
   const filteredCourses = externalCourses.filter(
     course => course.term === term
   );
 
   return (
-    <div className="container mt-4">
+    <div style={{ 
+      background: colors.background,
+      minHeight: "100vh", 
+      color: colors.textDark,
+      margin: 0,
+      padding: 0,
+      width: "100%",
+      maxWidth: "100%",
+      overflowX: "hidden",
+      position: "relative"
+    }}>
+      {/* EFECTO DE FONDO SUTIL */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `radial-gradient(circle at 50% 50%, ${colors.jadeLight}08 0%, transparent 70%)`,
+        pointerEvents: "none",
+        zIndex: 0
+      }}></div>
 
-      <Banner title={schedule.title} />
+      <div className="container-fluid py-5" style={{ position: "relative", zIndex: 1 }}>
+        <Banner title={schedule.title} />
 
-      {/* ------------------ */}
-      {/* TUS PARTIDOS */}
-      {/* ------------------ */}
-      <h2 className="mb-3">Partidos Programados</h2>
-      <div className="row">
-        {Object.values(schedule.courses).map((course, index) => (
-          <Card
-            key={index}
-            title={course.id}
-            subtitle={course.title}
-            extra={course.meets}
-          />
-        ))}
+        {/* PARTIDOS */}
+        <h2 className="mb-4 fw-bold"
+            style={{
+              color: colors.jadeMedium,
+              borderLeft: `5px solid ${colors.jadeLight}`,
+              paddingLeft: "15px",
+              fontSize: "2.2rem"
+            }}>
+          ⚽ Partidos Programados
+        </h2>
+
+        <div className="row">
+          {Object.values(schedule.courses).map((course, index) => (
+            <Card
+              key={index}
+              title={course.id}
+              subtitle={course.title}
+              extra={course.meets}
+            />
+          ))}
+        </div>
+
+        <hr className="my-5" style={{ 
+          borderColor: colors.jadeLight + "40",
+          height: "2px",
+          backgroundColor: colors.jadeLight + "20",
+          border: "none"
+        }} />
+
+        {/* CURSOS */}
+        <h2 className="mb-4 fw-bold"
+            style={{
+              color: colors.jadeMedium,
+              borderLeft: `5px solid ${colors.jadeLight}`,
+              paddingLeft: "15px",
+              fontSize: "2.2rem"
+            }}>
+          {externalTitle}
+        </h2>
+
+        <TermSelector term={term} setTerm={setTerm} />
+
+        <div className="row mt-4">
+          {filteredCourses.map((course, index) => (
+            <Card
+              key={index}
+              title={`${course.term} ${course.number}`}
+              subtitle={course.title}
+              extra={course.meets}
+            />
+          ))}
+        </div>
+
       </div>
-
-      <hr className="my-5" />
-
-      {/* ------------------ */}
-      {/* CURSOS FILTRADOS */}
-      {/* ------------------ */}
-
-      <h2 className="mb-3">{externalTitle}</h2>
-
-      <TermSelector term={term} setTerm={setTerm} />
-
-      <div className="row">
-        {filteredCourses.map((course, index) => (
-          <Card
-            key={index}
-            title={`${course.term} ${course.number}`}
-            subtitle={course.title}
-            extra={course.meets}
-          />
-        ))}
-      </div>
-
     </div>
   );
 }
