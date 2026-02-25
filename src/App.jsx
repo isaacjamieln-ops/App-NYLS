@@ -8,7 +8,7 @@ import {
   writeData,
   updateData 
 } from "./firebase";
-import { addScheduleTimes } from "./utilities/times"; // ← IMPORTANTE: agregar esta línea
+import { addScheduleTimes } from "./utilities/times";
 
 // --------------------
 // TUS DATOS ORIGINALES (PARTIDOS)
@@ -66,7 +66,183 @@ const colors = {
 };
 
 // --------------------
-// COMPONENTES
+// MODAL DE EDICIÓN DE CURSO
+// --------------------
+const CourseEditModal = ({ isOpen, onClose, course, onSave }) => {
+  const [formData, setFormData] = useState({
+    term: "",
+    number: "",
+    title: "",
+    meets: ""
+  });
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (course) {
+      setFormData({
+        term: course.term || "",
+        number: course.number || "",
+        title: course.title || "",
+        meets: course.meets || ""
+      });
+    }
+  }, [course]);
+
+  if (!isOpen || !course) return null;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!formData.term || !formData.number || !formData.title) {
+      setError("Los campos Term, Number y Title son obligatorios");
+      return;
+    }
+
+    onSave(formData);
+  };
+
+  return (
+    <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+      <div className="modal-dialog">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">✏️ Editar Curso</h5>
+            <button type="button" className="btn-close" onClick={onClose}></button>
+          </div>
+          <div className="modal-body">
+            {error && <div className="alert alert-danger">{error}</div>}
+            
+            <div className="mb-3">
+              <label className="form-label">Término</label>
+              <select 
+                className="form-control"
+                name="term"
+                value={formData.term}
+                onChange={handleChange}
+              >
+                <option value="">Seleccionar</option>
+                <option value="Fall">Fall</option>
+                <option value="Winter">Winter</option>
+                <option value="Spring">Spring</option>
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Número</label>
+              <input
+                type="text"
+                className="form-control"
+                name="number"
+                value={formData.number}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Título</label>
+              <input
+                type="text"
+                className="form-control"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Horario</label>
+              <input
+                type="text"
+                className="form-control"
+                name="meets"
+                value={formData.meets}
+                onChange={handleChange}
+                placeholder="Ej: MWF 10:00-10:50"
+              />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="button" className="btn btn-success" onClick={handleSubmit}>
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --------------------
+// MODAL DE EDICIÓN GENERAL
+// --------------------
+const EditModal = ({ isOpen, onClose, onSave, currentData }) => {
+  const [jsonData, setJsonData] = useState(JSON.stringify(currentData, null, 2));
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (currentData) {
+      setJsonData(JSON.stringify(currentData, null, 2));
+    }
+  }, [currentData]);
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    try {
+      const parsed = JSON.parse(jsonData);
+      onSave(parsed);
+      onClose();
+    } catch (e) {
+      setError("JSON inválido: " + e.message);
+    }
+  };
+
+  return (
+    <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">✏️ Editar Base de Datos</h5>
+            <button type="button" className="btn-close" onClick={onClose}></button>
+          </div>
+          <div className="modal-body">
+            <p className="text-muted">Modifica el JSON directamente. Los cambios se guardarán en Firebase.</p>
+            <textarea
+              className="form-control font-monospace"
+              rows="15"
+              value={jsonData}
+              onChange={(e) => {
+                setJsonData(e.target.value);
+                setError("");
+              }}
+            />
+            {error && <div className="alert alert-danger mt-2">{error}</div>}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="button" className="btn btn-success" onClick={handleSave}>
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --------------------
+// COMPONENTES PRINCIPALES
 // --------------------
 
 const Banner = ({ title, user, onEdit }) => (
@@ -81,7 +257,6 @@ const Banner = ({ title, user, onEdit }) => (
        onDoubleClick={user ? onEdit : null}>
     <h1 className="fw-bold display-5">{title}</h1>
     
-    {/* Botón de edición flotante (solo para usuarios autenticados) */}
     {user && (
       <button
         onClick={onEdit}
@@ -94,7 +269,6 @@ const Banner = ({ title, user, onEdit }) => (
   </div>
 );
 
-// Componente Card para los partidos
 const Card = ({ title, subtitle, extra }) => (
   <div className="col-md-6 col-lg-4 mb-4">
     <div className="card h-100 shadow-sm"
@@ -179,18 +353,51 @@ const hasConflict = (course, selected) => {
 };
 
 // --------------------
-// COMPONENTE COURSE
+// COMPONENTE COURSE CON DOBLE CLICK PARA EDITAR (CORREGIDO)
 // --------------------
-
-const Course = ({ course, selected, setSelected, user }) => {
+const Course = ({ course, selected, setSelected, user, onEdit }) => {
   const isSelected = selected.some(c => c.number === course.number);
   const isDisabled = !isSelected && selected.some(c => overlaps(course, c));
+  const [clickTimeout, setClickTimeout] = useState(null);
 
   const toggleCourse = () => {
     if (isSelected) {
       setSelected(selected.filter(c => c.number !== course.number));
     } else {
       setSelected([...selected, course]);
+    }
+  };
+
+  const handleClick = () => {
+    if (isDisabled) return;
+    
+    if (user) {
+      // Si hay usuario, esperamos para ver si es doble click
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        setClickTimeout(null);
+      }
+      
+      const timeout = setTimeout(() => {
+        toggleCourse();
+        setClickTimeout(null);
+      }, 250); // Espera 250ms para ver si es doble click
+      
+      setClickTimeout(timeout);
+    } else {
+      // Si no hay usuario, ejecuta toggle inmediatamente
+      toggleCourse();
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
+    }
+    
+    if (user) {
+      onEdit(course);
     }
   };
 
@@ -211,14 +418,16 @@ const Course = ({ course, selected, setSelected, user }) => {
     opacity: isDisabled ? 0.6 : 1,
     boxShadow: isSelected
       ? "0 0 20px rgba(0, 168, 107, 0.4)"
-      : "0 4px 12px rgba(0,0,0,0.05)"
+      : "0 4px 12px rgba(0,0,0,0.05)",
+    position: "relative"
   };
 
   return (
     <div
       className="card h-100 shadow-sm"
       style={style}
-      onClick={!isDisabled ? toggleCourse : null}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onMouseEnter={(e) => {
         if (!isDisabled) {
           e.currentTarget.style.transform = "translateY(-8px)";
@@ -234,6 +443,13 @@ const Course = ({ course, selected, setSelected, user }) => {
           : "0 4px 12px rgba(0,0,0,0.05)";
       }}
     >
+      {user && (
+        <div className="position-absolute top-0 end-0 m-2">
+          <span className="badge bg-warning text-dark" style={{ fontSize: "0.7rem" }}>
+            Doble click para editar
+          </span>
+        </div>
+      )}
       <div className="card-body">
         <h5
           className="card-title fw-bold"
@@ -357,7 +573,7 @@ const EditButton = ({ onEdit, user }) => {
       className="btn btn-primary btn-sm ms-3 px-4"
       style={{ borderRadius: "25px" }}
     >
-      ✏️ Modificar Base de Datos
+      ✏️ Editar JSON
     </button>
   );
 };
@@ -395,83 +611,20 @@ const TermSelector = ({ term, setTerm, user, onEdit }) => {
 };
 
 // --------------------
-// MODAL DE EDICIÓN
-// --------------------
-
-const EditModal = ({ isOpen, onClose, onSave, currentData }) => {
-  const [jsonData, setJsonData] = useState(JSON.stringify(currentData, null, 2));
-  const [error, setError] = useState("");
-
-  if (!isOpen) return null;
-
-  const handleSave = () => {
-    try {
-      const parsed = JSON.parse(jsonData);
-      onSave(parsed);
-      onClose();
-    } catch (e) {
-      setError("JSON inválido: " + e.message);
-    }
-  };
-
-  return (
-    <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">✏️ Editar Base de Datos</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <div className="modal-body">
-            <p className="text-muted">Modifica el JSON directamente. Los cambios se guardarán en Firebase.</p>
-            <textarea
-              className="form-control font-monospace"
-              rows="15"
-              value={jsonData}
-              onChange={(e) => {
-                setJsonData(e.target.value);
-                setError("");
-              }}
-            />
-            {error && <div className="alert alert-danger mt-2">{error}</div>}
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="button" className="btn btn-success" onClick={handleSave}>
-              Guardar Cambios
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --------------------
 // APP PRINCIPAL
 // --------------------
 
 function App() {
-  const [scheduleData, loading, error] = useData('/', addScheduleTimes); // ← AGREGADO addScheduleTimes
-  const [user] = useUserState(); // ← AGREGADO useUserState
+  const [scheduleData, loading, error] = useData('/', addScheduleTimes);
+  const [user] = useUserState();
   const [term, setTerm] = useState("Fall");
   const [selected, setSelected] = useState([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-useEffect(() => {
-  console.log("👤 Estado de autenticación:", user);
-  if (user) {
-    console.log("✅ Usuario autenticado:", user.email);
-    console.log("🔑 Token:", user.accessToken);
-  } else {
-    console.log("❌ No hay usuario autenticado");
-  }
-}, [user]);
+  const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
 
   useEffect(() => {
-    console.log("👤 Usuario actual:", user);
+    console.log("👤 Estado de autenticación:", user);
   }, [user]);
 
   // Obtener datos de Firebase
@@ -488,7 +641,7 @@ useEffect(() => {
     setSelected([]);
   }, [term]);
 
-  // Función para guardar cambios en Firebase
+  // Función para guardar cambios en Firebase (edición general)
   const handleSaveData = (newData) => {
     if (!user) {
       alert("Debes iniciar sesión para modificar la base de datos");
@@ -498,6 +651,35 @@ useEffect(() => {
     writeData('/', newData)
       .then(() => {
         alert("✅ Datos guardados correctamente");
+      })
+      .catch(error => {
+        alert("❌ Error al guardar: " + error.message);
+      });
+  };
+
+  // Función para guardar cambios en un curso específico
+  const handleSaveCourse = (updatedCourse) => {
+    if (!user || !scheduleData || !scheduleData.courses) return;
+
+    // Encontrar la clave del curso en el objeto
+    const courseKey = Object.keys(scheduleData.courses).find(
+      key => scheduleData.courses[key].number === editingCourse.number
+    );
+
+    if (!courseKey) return;
+
+    const newData = {
+      ...scheduleData,
+      courses: {
+        ...scheduleData.courses,
+        [courseKey]: updatedCourse
+      }
+    };
+
+    writeData('/', newData)
+      .then(() => {
+        alert("✅ Curso actualizado correctamente");
+        setIsCourseEditModalOpen(false);
       })
       .catch(error => {
         alert("❌ Error al guardar: " + error.message);
@@ -612,15 +794,32 @@ useEffect(() => {
           selected={selected}
           setSelected={setSelected}
           colors={colors}
-          CourseComponent={(props) => <Course {...props} user={user} />}
+          CourseComponent={(props) => (
+            <Course 
+              {...props} 
+              user={user} 
+              onEdit={(course) => {
+                setEditingCourse(course);
+                setIsCourseEditModalOpen(true);
+              }}
+            />
+          )}
         />
 
-        {/* Modal de edición */}
+        {/* Modal de edición general */}
         <EditModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           onSave={handleSaveData}
           currentData={scheduleData}
+        />
+
+        {/* Modal de edición de curso individual */}
+        <CourseEditModal
+          isOpen={isCourseEditModalOpen}
+          onClose={() => setIsCourseEditModalOpen(false)}
+          course={editingCourse}
+          onSave={handleSaveCourse}
         />
 
       </div>
