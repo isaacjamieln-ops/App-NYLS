@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from "react";
 import CourseList from "./components/CourseList.jsx";
-import { useData } from "./firebase";
-import { addScheduleTimes } from "./utilities/times";
+import { 
+  useData,
+  signInWithGoogle,
+  firebaseSignOut,
+  useUserState,
+  writeData,
+  updateData 
+} from "./firebase";
+import { addScheduleTimes } from "./utilities/times"; // ← IMPORTANTE: agregar esta línea
 
 // --------------------
 // TUS DATOS ORIGINALES (PARTIDOS)
@@ -49,7 +56,7 @@ const colors = {
   jadeMedium: "#008B5E",
   jadeDark: "#006B45",
   jadeSoft: "#90EE90",
-  jadeVerySoft: "#E8F5E9",
+  jadeVerySoft: "#6cb364",
   gold: "#D4AF37",
   background: "#FFFFFF",
   cardBg: "#F8F9FA",
@@ -62,24 +69,28 @@ const colors = {
 // COMPONENTES
 // --------------------
 
-const Banner = ({ title }) => (
-  <div className="text-center py-5 mb-5 rounded shadow-sm"
+const Banner = ({ title, user, onEdit }) => (
+  <div className="text-center py-5 mb-5 rounded shadow-sm position-relative"
        style={{
          background: `linear-gradient(135deg, ${colors.jadeLight}, ${colors.jadeMedium})`,
          color: "white",
          transition: "all 0.3s ease",
-         cursor: "pointer",
-         border: "none"
+         cursor: user ? "pointer" : "default",
+         border: user ? "2px solid white" : "none"
        }}
-       onMouseEnter={(e) => {
-         e.currentTarget.style.background = `linear-gradient(135deg, ${colors.jadeMedium}, ${colors.jadeDark})`;
-         e.currentTarget.style.transform = "scale(1.02)";
-       }}
-       onMouseLeave={(e) => {
-         e.currentTarget.style.background = `linear-gradient(135deg, ${colors.jadeLight}, ${colors.jadeMedium})`;
-         e.currentTarget.style.transform = "scale(1)";
-       }}>
+       onDoubleClick={user ? onEdit : null}>
     <h1 className="fw-bold display-5">{title}</h1>
+    
+    {/* Botón de edición flotante (solo para usuarios autenticados) */}
+    {user && (
+      <button
+        onClick={onEdit}
+        className="btn btn-light btn-sm position-absolute top-0 end-0 m-3"
+        style={{ borderRadius: "20px" }}
+      >
+        ✏️ Editar Horarios
+      </button>
+    )}
   </div>
 );
 
@@ -119,7 +130,7 @@ const Card = ({ title, subtitle, extra }) => (
 );
 
 // --------------------
-// FUNCIONES AUXILIARES PARA DETECCIÓN DE CONFLICTOS
+// FUNCIONES AUXILIARES
 // --------------------
 
 const getCourseTerm = (course) => course.term;
@@ -168,25 +179,20 @@ const hasConflict = (course, selected) => {
 };
 
 // --------------------
-// COMPONENTE COURSE (con lógica correcta de selección)
+// COMPONENTE COURSE
 // --------------------
 
-const Course = ({ course, selected, setSelected }) => {
-  // Comparar por number (más seguro que por objeto completo)
+const Course = ({ course, selected, setSelected, user }) => {
   const isSelected = selected.some(c => c.number === course.number);
+  const isDisabled = !isSelected && selected.some(c => overlaps(course, c));
 
   const toggleCourse = () => {
     if (isSelected) {
-      // Deseleccionar
       setSelected(selected.filter(c => c.number !== course.number));
     } else {
-      // Seleccionar
       setSelected([...selected, course]);
     }
   };
-
-  const isDisabled =
-    !isSelected && selected.some(c => overlaps(course, c));
 
   const style = {
     backgroundColor: isSelected
@@ -235,15 +241,12 @@ const Course = ({ course, selected, setSelected }) => {
         >
           {getCourseTerm(course)} {getCourseNumber(course)}
         </h5>
-
         <p className="card-text">{course.title}</p>
-
         <p className="card-text">
           <small style={{ color: colors.textLight }}>
             {course.meets || "Horario no disponible"}
           </small>
         </p>
-
         {isDisabled && (
           <div className="text-danger fw-bold mt-2">
             ⚠️ Conflicto de horario
@@ -255,7 +258,7 @@ const Course = ({ course, selected, setSelected }) => {
 };
 
 // --------------------
-// BOTONES DE TERMINO
+// BOTONES
 // --------------------
 
 const TermButton = ({ term, setTerm, checked }) => (
@@ -298,27 +301,184 @@ const TermButton = ({ term, setTerm, checked }) => (
   </>
 );
 
-const TermSelector = ({ term, setTerm }) => (
-  <div className="btn-group mb-4">
-    {Object.values(terms).map(value => (
-      <TermButton key={value} term={value} setTerm={setTerm} checked={value === term} />
-    ))}
-  </div>
+const SignInButton = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Error en inicio de sesión:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  return (
+    <button 
+      className="btn btn-success btn-sm px-4"
+      onClick={handleSignIn}
+      disabled={isLoading}
+      style={{ borderRadius: "25px" }}
+    >
+      {isLoading ? (
+        <>
+          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+          Cargando...
+        </>
+      ) : (
+        <>
+          <i className="bi bi-google me-2"></i>
+          Iniciar sesión con Google
+        </>
+      )}
+    </button>
+  );
+};
+
+const SignOutButton = () => (
+  <button 
+    className="btn btn-outline-danger btn-sm px-4"
+    onClick={firebaseSignOut}
+    style={{ borderRadius: "25px" }}
+  >
+    <i className="bi bi-box-arrow-right me-2"></i>
+    Cerrar sesión
+  </button>
 );
 
+const EditButton = ({ onEdit, user }) => {
+  if (!user) return null;
+  
+  return (
+    <button
+      onClick={onEdit}
+      className="btn btn-primary btn-sm ms-3 px-4"
+      style={{ borderRadius: "25px" }}
+    >
+      ✏️ Modificar Base de Datos
+    </button>
+  );
+};
+
+const TermSelector = ({ term, setTerm, user, onEdit }) => {
+  return (
+    <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+      <div className="btn-group">
+        {Object.values(terms).map(value => (
+          <TermButton 
+            key={value}
+            term={value}
+            setTerm={setTerm}
+            checked={value === term}
+          />
+        ))}
+      </div>
+      
+      <div className="d-flex gap-2 mt-2 mt-md-0">
+        {user ? (
+          <>
+            <span className="badge bg-light text-dark p-2 align-self-center">
+              👤 {user.email}
+            </span>
+            <SignOutButton />
+          </>
+        ) : (
+          <SignInButton />
+        )}
+        
+        <EditButton onEdit={onEdit} user={user} />
+      </div>
+    </div>
+  );
+};
+
 // --------------------
-// APP PRINCIPAL CON FIREBASE
+// MODAL DE EDICIÓN
+// --------------------
+
+const EditModal = ({ isOpen, onClose, onSave, currentData }) => {
+  const [jsonData, setJsonData] = useState(JSON.stringify(currentData, null, 2));
+  const [error, setError] = useState("");
+
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    try {
+      const parsed = JSON.parse(jsonData);
+      onSave(parsed);
+      onClose();
+    } catch (e) {
+      setError("JSON inválido: " + e.message);
+    }
+  };
+
+  return (
+    <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title">✏️ Editar Base de Datos</h5>
+            <button type="button" className="btn-close" onClick={onClose}></button>
+          </div>
+          <div className="modal-body">
+            <p className="text-muted">Modifica el JSON directamente. Los cambios se guardarán en Firebase.</p>
+            <textarea
+              className="form-control font-monospace"
+              rows="15"
+              value={jsonData}
+              onChange={(e) => {
+                setJsonData(e.target.value);
+                setError("");
+              }}
+            />
+            {error && <div className="alert alert-danger mt-2">{error}</div>}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="button" className="btn btn-success" onClick={handleSave}>
+              Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --------------------
+// APP PRINCIPAL
 // --------------------
 
 function App() {
-  // 🔥 Usar Firebase en lugar de fetch
-  const [scheduleData, loading, error] = useData('/', addScheduleTimes);
+  const [scheduleData, loading, error] = useData('/', addScheduleTimes); // ← AGREGADO addScheduleTimes
+  const [user] = useUserState(); // ← AGREGADO useUserState
   const [term, setTerm] = useState("Fall");
   const [selected, setSelected] = useState([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+useEffect(() => {
+  console.log("👤 Estado de autenticación:", user);
+  if (user) {
+    console.log("✅ Usuario autenticado:", user.email);
+    console.log("🔑 Token:", user.accessToken);
+  } else {
+    console.log("❌ No hay usuario autenticado");
+  }
+}, [user]);
+
+  useEffect(() => {
+    console.log("👤 Usuario actual:", user);
+  }, [user]);
 
   // Obtener datos de Firebase
   const externalTitle = scheduleData?.title || "CS Courses for 2018-2019";
-  const externalCourses = scheduleData?.courses || [];
+  const externalCourses = scheduleData?.courses
+    ? Object.values(scheduleData.courses)
+    : [];
 
   // Filtrar por término
   const filteredCourses = externalCourses.filter(course => course.term === term);
@@ -327,6 +487,22 @@ function App() {
   useEffect(() => {
     setSelected([]);
   }, [term]);
+
+  // Función para guardar cambios en Firebase
+  const handleSaveData = (newData) => {
+    if (!user) {
+      alert("Debes iniciar sesión para modificar la base de datos");
+      return;
+    }
+    
+    writeData('/', newData)
+      .then(() => {
+        alert("✅ Datos guardados correctamente");
+      })
+      .catch(error => {
+        alert("❌ Error al guardar: " + error.message);
+      });
+  };
 
   // Mostrar estado de carga
   if (loading) {
@@ -378,7 +554,11 @@ function App() {
       }}></div>
 
       <div className="container-fluid py-5" style={{ position: "relative", zIndex: 1 }}>
-        <Banner title={schedule.title} />
+        <Banner 
+          title={schedule.title} 
+          user={user}
+          onEdit={() => setIsEditModalOpen(true)}
+        />
 
         {/* ⚽ PARTIDOS */}
         <h2 className="mb-4 fw-bold"
@@ -409,7 +589,7 @@ function App() {
           border: "none"
         }} />
 
-        {/* 📚 CURSOS DESDE FIREBASE CON DETECCIÓN DE CONFLICTOS */}
+        {/* 📚 CURSOS DESDE FIREBASE */}
         <h2 className="mb-4 fw-bold"
             style={{
               color: colors.jadeMedium,
@@ -420,14 +600,27 @@ function App() {
           {externalTitle}
         </h2>
 
-        <TermSelector term={term} setTerm={setTerm} />
+        <TermSelector 
+          term={term} 
+          setTerm={setTerm} 
+          user={user}
+          onEdit={() => setIsEditModalOpen(true)}
+        />
 
         <CourseList
           courses={filteredCourses}
           selected={selected}
           setSelected={setSelected}
           colors={colors}
-          CourseComponent={Course}
+          CourseComponent={(props) => <Course {...props} user={user} />}
+        />
+
+        {/* Modal de edición */}
+        <EditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveData}
+          currentData={scheduleData}
         />
 
       </div>
